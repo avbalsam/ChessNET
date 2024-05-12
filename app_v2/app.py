@@ -132,28 +132,53 @@ if __name__ == "__main__":
                 std=[0.27787283, 0.27054584, 0.27802786]),
         ])
     train_dataset = ChessRecognitionDataset(
-        dataroot="chessred", 
+        dataroot="/Users/avbalsam/Desktop/6.8301/real-life-chess-vision/app_v2/chessred", 
         split="train", 
         transform=chess_image_transform
     )
     train_dataloader = DataLoader(train_dataset, batch_size=16)
     val_dataset = ChessRecognitionDataset(
-        dataroot="chessred",
+        dataroot="/Users/avbalsam/Desktop/6.8301/real-life-chess-vision/app_v2/chessred",
         split="val",
         transform=chess_image_transform
     )
     val_dataloader = DataLoader(val_dataset, batch_size=1)
     test_dataset = ChessRecognitionDataset(
-        dataroot="./chessred",
+        dataroot="/Users/avbalsam/Desktop/6.8301/real-life-chess-vision/app_v2/chessred",
         split="test",
         transform=chess_image_transform
     )
     test_dataloader = DataLoader(test_dataset, batch_size=1)
 
     for epoch in range(num_epochs):
+        i = 0
+        for inputs, labels in train_dataloader:
+            i += 1
+            print(i)
+            if (i == 25):
+                num_to_piece = {
+                    0: "P",
+                    1: "R",
+                    2: "N",
+                    3: "B",
+                    4: "Q",
+                    5: "K",
+                    6: "p",
+                    7: "r",
+                    8: "n",
+                    9: "b",
+                    10: "q",
+                    11: "k",
+                    12: " ",
+                }
+                board_arr = [[num_to_piece[torch.argmax(labels[0][13 * (8 * row + col) : 13 * (8 * row + col + 1)]).item()] for col in range(8)] for row in range(8)]
+                print("inp shape", inputs.shape)
+                print("labels shape", labels.shape)
+                pprint(board_arr)
 
-        for batch in train_dataloader:
+                print(labels[0][0:13])
+                print(labels[0][13:26])
 
-            plt.imshow(np.array(batch[0][0][0]))
-            plt.show()
-            exit(0)
+                plt.imshow(np.array(inputs[0][0]))
+                plt.show()
+                exit(0)
