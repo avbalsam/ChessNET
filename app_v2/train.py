@@ -151,14 +151,15 @@ class ChessNET(pl.LightningModule):
         logits = self.forward(x)
 
         if return_accuracy:
-            # assert False, "not implemented"
-            y_cat = y.reshape((-1, 13))
-            preds_cat = logits.reshape((-1, 13))
-            # print("output shape", y.shape)
-            # print("logits shape", preds_cat.shape)
+            correct = 0
+            for true_label, pred_label in zip(y, logits):
+                if torch.argmax(true_label) == torch.argmax(pred_label):
+                    correct += 1
+
+            assert x.shape[0] == y.shape[0] == logits.shape[0]
 
             return (self.cross_entropy_loss(logits, y),
-                    recognition_accuracy(y_cat, preds_cat))
+                    correct / y.shape[0])
 
         return self.cross_entropy_loss(logits, y)
 
@@ -167,7 +168,7 @@ class ChessNET(pl.LightningModule):
                       batch_idx: int) -> torch.Tensor:
 
         loss = self.common_step(train_batch, batch_idx)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, prog_bar=True)
 
         return loss
 
@@ -183,7 +184,7 @@ class ChessNET(pl.LightningModule):
             val_batch, batch_idx, return_accuracy=True)
 
         self.log('val_loss', loss)
-        self.log('val_acc', accuracy)
+        self.log('val_acc', accuracy, prog_bar=True)
 
     def test_step(self,
                   test_batch: Tuple[torch.Tensor, torch.Tensor],

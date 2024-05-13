@@ -215,7 +215,7 @@ class ChessRecognitionDataset(Dataset):
             for i in range(64):
                 row, col = divmod(i, 8)
 
-                # LOAD IMAGE
+                # LOAD IMAGE#TODO move this logic to a helper function
                 img_path = Path(
                     self.dataroot,
                     self.images[self.images['id'] == img_id].path.values[0])
@@ -250,18 +250,20 @@ class ChessRecognitionDataset(Dataset):
 
                 self.squares.append(((img_path, row, col), ann))
 
-        self.imgs_by_category = [[(img_info, ann) for (img_info, ann) in self.squares if np.argmax(ann.numpy()) == category_id] for category_id in range(12)] # blank squares do not have a category
-        print(list(map(len, self.imgs_by_category)))
+        self.imgs_by_category = [[(img_info, ann) for (img_info, ann) in self.squares if np.argmax(ann.numpy()) == category_id] for category_id in range(13)]
+        print("total number of images:",len(self.squares))
+        print("images by class:",list(map(len, self.imgs_by_category)))
+        self.length = len(self.squares)
 
         self.class_weights = [ # the weights with which we should sample each class
-            5,
+            0.5,
             2,
-            1.5,
-            1.5,
-            1,
-            1,
+            2,
+            2,
+            2,
+            2,
         ] * 2
-        self.class_weights.append(64 - sum(self.class_weights))
+        self.class_weights.append(0.1)
         self.class_weights[-1] /= 2 # weight the blanks lower so that we train faster (we do perfectly on them anyway)
 
         assert (self.length == len(self.split_img_ids) * 64 and
@@ -298,46 +300,56 @@ class ChessRecognitionDataset(Dataset):
             img_anns (Tensor): A (13,)-shape Tensor containing the annotation for
                                the chessboard square in one-hot encoding.
         """
-        img_idx, square_idx = divmod(index, 64)
-        row, col = divmod(square_idx, 8)
-        # LOAD IMAGE
-        img_id = self.split_img_ids[img_idx]
-        img_path = Path(
-            self.dataroot,
-            self.images[self.images['id'] == img_id].path.values[0])
-        img_path = str(img_path).replace("images", "projected_imgs") # get from the projected_imgs directory instead of the images directory
+        if self.split == "train":
+            # pick a random class using weights, and then a random image from the class
+            import random
+            _class = random.choices(list(range(13)), weights=self.class_weights)[0]
+            ((img_path, row, col), ann) = random.choice(self.imgs_by_category[_class])
+
+        elif self.split == "val" or self.split == "test":
+            img_idx, square_idx = divmod(index, 64)
+            row, col = divmod(square_idx, 8)
+            # LOAD IMAGE #TODO Move this logic to a helper function
+            img_id = self.split_img_ids[img_idx]
+            img_path = Path(
+                self.dataroot,
+                self.images[self.images['id'] == img_id].path.values[0])
+            img_path = str(img_path).replace("images", "projected_imgs") # get from the projected_imgs directory instead of the images directory
+
+            # GET ANNOTATIONS
+            cols = "abcdefgh"
+            rows = "87654321"
+
+            empty_cat_id = int(
+                self.categories[self.categories['name'] == 'empty'].id.values[0])
+
+            img_anns = self.annotations[
+                self.annotations['image_id'] == img_id].copy()
+
+            # Convert chessboard positions to 64x1 array indexes
+            img_anns['array_pos'] = img_anns["chessboard_position"].map(
+                lambda x: 8*rows.index(x[1]) + cols.index(x[0]))
+
+            # Keep columns of interest
+            img_anns = pd.DataFrame(
+                img_anns['category_id']).set_index(img_anns['array_pos'])
+
+            # Add category_id for 'empty' in missing row indexes and create tensor
+            img_anns = torch.tensor(list(img_anns.reindex(
+                range(64), fill_value=empty_cat_id)['category_id'].values))
+
+            img_anns = F.one_hot(img_anns)
+            # img_anns = img_anns.flatten().float()
+            ann = img_anns[square_idx]
+        else:
+            assert False, "invalid split"
+
+
         img = read_image(img_path).float()
 
         if self.transform is not None:
             img = self.transform(img)
 
-        # GET ANNOTATIONS
-        cols = "abcdefgh"
-        rows = "87654321"
-
-        empty_cat_id = int(
-            self.categories[self.categories['name'] == 'empty'].id.values[0])
-
-        img_anns = self.annotations[
-            self.annotations['image_id'] == img_id].copy()
-
-        # Convert chessboard positions to 64x1 array indexes
-        img_anns['array_pos'] = img_anns["chessboard_position"].map(
-            lambda x: 8*rows.index(x[1]) + cols.index(x[0]))
-
-        # Keep columns of interest
-        img_anns = pd.DataFrame(
-            img_anns['category_id']).set_index(img_anns['array_pos'])
-
-        # Add category_id for 'empty' in missing row indexes and create tensor
-        img_anns = torch.tensor(list(img_anns.reindex(
-            range(64), fill_value=empty_cat_id)['category_id'].values))
-
-        img_anns = F.one_hot(img_anns)
-        # img_anns = img_anns.flatten().float()
-
         square_img = get_square_from_image(img, row, col)
-        ann = img_anns[square_idx]
 
-        # return (img, img_anns)
         return (square_img, ann)

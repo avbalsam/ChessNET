@@ -81,7 +81,7 @@ if __name__ == "__main__":
     # compute accuracy of model
     print("total number of images:", len(val_dataloader))
 
-    model = ChessNET.load_from_checkpoint("/Users/avbalsam/Desktop/6.8301/real-life-chess-vision/app_v2/lightning_logs/version_22/checkpoints/last.ckpt")
+    model = ChessNET.load_from_checkpoint("/Users/avbalsam/Desktop/6.8301/real-life-chess-vision/app_v2/lightning_logs/balanced_20e/checkpoints/last.ckpt")
     model.eval()
     num_correct = 0
     total = 0
