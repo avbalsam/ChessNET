@@ -73,7 +73,7 @@ if __name__ == "__main__":
     val_dataloader = DataLoader(val_dataset, batch_size=1)
     # test_dataset = ChessRecognitionDataset(
     #     dataroot="/Users/marcusbluestone/Desktop/ChessNET/app_v2/chessred",
-    #     split="test",
+    #     split="test"
     #     transform=chess_image_transform
     # )
     #test_dataloader = DataLoader(test_dataset, batch_size=1)
