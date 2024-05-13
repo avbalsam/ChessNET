@@ -18,7 +18,10 @@ ssl._create_default_https_context = ssl._create_unverified_context
 
 from dataset import ChessRecognitionDataset
 from train import ChessNET
-
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sn
+import pandas as pd
             
 num_to_piece = {
     0: "P",
@@ -84,6 +87,9 @@ if __name__ == "__main__":
     total = 0
     correct_by_class = [0 for _ in range(len(num_to_piece))]
     total_by_class = [0 for _ in range(len(num_to_piece))]
+    type_pred, type_label = [], []
+    color_pred, color_label = [], []
+
     for inputs, labels in val_dataloader:
         
         assert len(inputs) == len(labels) == 1, \
@@ -97,7 +103,11 @@ if __name__ == "__main__":
         res = model(inp)
         res = res[0].cpu().detach().numpy()
         pred_piece_name = num_to_piece[np.argmax(res)]
+        color_pred.append('W' if pred_piece_name.isupper() else 'B')
+        type_pred.append(pred_piece_name.upper())
         correct = pred_piece_name == num_to_piece[correct_piece_number]
+        color_label.append('W' if num_to_piece[correct_piece_number].isupper() else 'B')
+        type_label.append(num_to_piece[correct_piece_number].upper())
 
         print(correct, "num_correct:",num_correct,"total:",total,"accuracy by class", [round(c / t, 2) if t > 0 else 0 for c,t in zip(correct_by_class, total_by_class)],"accuracy:",round(num_correct/total,5) if total > 0 else 0, end='\r')
         if correct:
@@ -107,3 +117,18 @@ if __name__ == "__main__":
         total_by_class[correct_piece_number] += 1
 
     print("model accuracy: %d".format((correct / total) * 100))
+    cf_matrix_type = confusion_matrix(type_label, type_pred)
+    classes = (piece.upper() for piece in num_to_piece.values())
+    df_cm = pd.DataFrame(cf_matrix_type / np.sum(cf_matrix_type, axis=1)[:, None], index = [i for i in classes],
+                     columns = [i for i in classes])
+    plt.figure(figsize = (12,7))
+    sn.heatmap(df_cm, annot=True)
+    plt.savefig('type_heatmap.png')
+
+    cf_matrix_color = confusion_matrix(color_label, color_pred)
+    classes = ('B', 'W')
+    df_cm = pd.DataFrame(cf_matrix_color / np.sum(cf_matrix_color, axis=1)[:, None], index = [i for i in classes],
+                     columns = [i for i in classes])
+    plt.figure(figsize = (12,7))
+    sn.heatmap(df_cm, annot=True)
+    plt.savefig('color_heatmap.png')
