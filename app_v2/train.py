@@ -158,8 +158,10 @@ class ChessNET(pl.LightningModule):
 
             assert x.shape[0] == y.shape[0] == logits.shape[0]
 
+            acc = correct / y.shape[0]
+
             return (self.cross_entropy_loss(logits, y),
-                    correct / y.shape[0])
+                    acc)
 
         return self.cross_entropy_loss(logits, y)
 
