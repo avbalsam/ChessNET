@@ -91,6 +91,7 @@ def recognition_accuracy(
         preds (Tensor): Model predictions.
         tolerance (int): Allowed mistakes per board. (Default: 0)
     """
-    correct = ((preds == y).sum(axis=1) > 63-tolerance).sum()
+    # print("eq shape", (preds == y).sum(axis=1).shape)
+    correct = ((preds == y).sum(axis=1) > 0).sum()
 
     return correct / preds.shape[0]

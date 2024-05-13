@@ -12,7 +12,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from dataset import ChessRecognitionDataset, perspective_transform
+from dataset import ChessRecognitionDataset
 from utils import download_chessred, extract_zipfile, recognition_accuracy
 
 pl.seed_everything(42, workers=True)
@@ -38,7 +38,6 @@ class ChessDataModule(pl.LightningDataModule):
         self.transform = transforms.Compose([
             transforms.Resize(1024, antialias=None),
             transforms.ToPILImage(),
-            perspective_transform,
             transforms.ToTensor(),
             transforms.Normalize(
                 mean=[0.47225544, 0.51124555, 0.55296206],
@@ -94,7 +93,7 @@ class ChessDataModule(pl.LightningDataModule):
             num_workers=self.workers)
 
 
-class ChessResNeXt(pl.LightningModule):
+class ChessNET(pl.LightningModule):
     """Modified ResNeXt network for chess recognition on ChessReD.
 
     This class implements a modified ResNeXt network for chess recognition.
@@ -128,7 +127,7 @@ class ChessResNeXt(pl.LightningModule):
 
         self.feature_extractor = nn.Sequential(*layers)
 
-        num_target_classes = 64 * 13
+        num_target_classes = 13
 
         self.classifier = nn.Linear(num_filters, num_target_classes)
 
@@ -140,7 +139,7 @@ class ChessResNeXt(pl.LightningModule):
 
     def cross_entropy_loss(
             self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        return F.binary_cross_entropy_with_logits(logits, labels)
+        return F.binary_cross_entropy_with_logits(logits, labels.to(torch.float32))
 
     def common_step(
             self,
@@ -152,8 +151,11 @@ class ChessResNeXt(pl.LightningModule):
         logits = self.forward(x)
 
         if return_accuracy:
-            y_cat = torch.argmax(y.reshape((-1, 64, 13)), dim=2)
-            preds_cat = torch.argmax(logits.reshape((-1, 64, 13)), dim=2)
+            # assert False, "not implemented"
+            y_cat = y.reshape((-1, 13))
+            preds_cat = logits.reshape((-1, 13))
+            # print("output shape", y.shape)
+            # print("logits shape", preds_cat.shape)
 
             return (self.cross_entropy_loss(logits, y),
                     recognition_accuracy(y_cat, preds_cat))
@@ -212,7 +214,7 @@ def main(args):
     data_module = ChessDataModule(
         args.dataroot, args.nsamples, args.workers)
 
-    model = ChessResNeXt(lr=args.lr, decay=args.decay)
+    model = ChessNET(lr=args.lr, decay=args.decay)
     checkpoint_callback = ModelCheckpoint(
         monitor="val_loss",
         save_last=True,
@@ -223,8 +225,8 @@ def main(args):
     )
 
     trainer = pl.Trainer(accelerator=args.device, devices=args.ndevices,
-                         deterministic=True, max_epochs=args.epochs,
-                         callbacks=[checkpoint_callback])
+                         deterministic=True, max_epochs=int(args.epochs),
+                         callbacks=[checkpoint_callback],)
     trainer.fit(model, data_module)
 
 
