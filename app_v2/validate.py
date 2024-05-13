@@ -59,29 +59,28 @@ if __name__ == "__main__":
                 mean=[0.47225544, 0.51124555, 0.55296206],
                 std=[0.27787283, 0.27054584, 0.27802786]),
         ])
-    train_dataset = ChessRecognitionDataset(
-        dataroot="/Users/avbalsam/Desktop/6.8301/real-life-chess-vision/app_v2/chessred", 
-        split="train", 
-        transform=chess_image_transform
-    )
-    train_dataloader = DataLoader(train_dataset, batch_size=16)
+    # train_dataset = ChessRecognitionDataset(
+    #     dataroot="/Users/avbalsam/Desktop/6.8301/real-life-chess-vision/app_v2/chessred", 
+    #     split="train", 
+    #     transform=chess_image_transform
+    # )
+    #train_dataloader = DataLoader(train_dataset, batch_size=16)
     val_dataset = ChessRecognitionDataset(
-        dataroot="/Users/avbalsam/Desktop/6.8301/real-life-chess-vision/app_v2/chessred",
+        dataroot="/Users/marcusbluestone/Desktop/ChessNET/app_v2/chessred",
         split="val",
         transform=chess_image_transform
     )
     val_dataloader = DataLoader(val_dataset, batch_size=1)
-    test_dataset = ChessRecognitionDataset(
-        dataroot="/Users/avbalsam/Desktop/6.8301/real-life-chess-vision/app_v2/chessred",
-        split="test",
-        transform=chess_image_transform
-    )
-    test_dataloader = DataLoader(test_dataset, batch_size=1)
+    # test_dataset = ChessRecognitionDataset(
+    #     dataroot="/Users/marcusbluestone/Desktop/ChessNET/app_v2/chessred",
+    #     split="test",
+    #     transform=chess_image_transform
+    # )
+    #test_dataloader = DataLoader(test_dataset, batch_size=1)
 
     # compute accuracy of model
     print("total number of images:", len(val_dataloader))
-
-    model = ChessNET.load_from_checkpoint("/Users/avbalsam/Desktop/6.8301/real-life-chess-vision/app_v2/lightning_logs/balanced_20e/checkpoints/last.ckpt")
+    model = ChessNET.load_from_checkpoint("/Users/marcusbluestone/Desktop/ChessNET/app_v2/last.ckpt")
     model.eval()
     num_correct = 0
     total = 0
@@ -91,7 +90,6 @@ if __name__ == "__main__":
     color_pred, color_label = [], []
 
     for inputs, labels in val_dataloader:
-        
         assert len(inputs) == len(labels) == 1, \
             "the val dataloader should only have one image per batch"
         inp = inputs
@@ -99,7 +97,6 @@ if __name__ == "__main__":
         correct_piece_number = np.argmax(label).item()
 
         inp = inp.to(torch.device("mps"))
-
         res = model(inp)
         res = res[0].cpu().detach().numpy()
         pred_piece_name = num_to_piece[np.argmax(res)]
@@ -118,7 +115,7 @@ if __name__ == "__main__":
 
     print("model accuracy: %d".format((correct / total) * 100))
     cf_matrix_type = confusion_matrix(type_label, type_pred)
-    classes = (piece.upper() for piece in num_to_piece.values())
+    classes = (' ', 'P', 'N', 'B', 'R', 'Q', 'K')
     df_cm = pd.DataFrame(cf_matrix_type / np.sum(cf_matrix_type, axis=1)[:, None], index = [i for i in classes],
                      columns = [i for i in classes])
     plt.figure(figsize = (12,7))
